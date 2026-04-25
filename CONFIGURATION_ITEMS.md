@@ -10,7 +10,7 @@
 - **ID:** `IC-02`
   - **Descrição:** Frontend Dashboard (React) - Interface para visualização dos dados climáticos.
   - **Repositório:** [GitHub](https://github.com/IsacAnd/weather-insight-system)
-  - **Owner:** 
+  - **Owner:** @YasminEmily
   - **Branch padrão:** `main`
   - **Tags:** `v1.0.0`, `stable`
 
@@ -38,14 +38,14 @@
 - **ID:** `IC-06`
   - **Descrição:** Manual de Operação - Instruções de instalação e deploy no `README.md`.
   - **Repositório:** [GitHub](https://github.com/IsacAnd/weather-insight-system)
-  - **Owner:** 
+  - **Owner:** @roger
   - **Branch padrão:** `main`
   - **Tags:** `v1.0.0`
 
 - **ID:** `IC-07`
   - **Descrição:** Documentação de Endpoints - Tabela de rotas e contratos da API no `API.md`.
   - **Repositório:** [GitHub](https://github.com/IsacAnd/weather-insight-system)
-  - **Owner:** 
+  - **Owner:** @YasminEmily
   - **Branch padrão:** `main`
   - **Tags:** `v1.0.0`
 
