@@ -23,5 +23,8 @@ jobs:
       - name: Build Worker
         run: docker build -t worker ./worker
 
+      - name: Create env file
+        run: cp .env.example .env
+
       - name: Validate Compose
         run: docker compose config
