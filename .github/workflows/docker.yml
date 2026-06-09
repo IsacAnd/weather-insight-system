@@ -1,0 +1,27 @@
+name: Docker Validation
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  docker-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Backend
+        run: docker build -t backend ./backend
+
+      - name: Build Frontend
+        run: docker build -t frontend ./frontend
+
+      - name: Build Producer
+        run: docker build -t producer ./producer
+
+      - name: Build Worker
+        run: docker build -t worker ./worker
+
+      - name: Validate Compose
+        run: docker compose config
