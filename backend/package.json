@@ -6,7 +6,8 @@
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "build": "nest build",
-    "lint": "eslint \"src/**/*.ts\" --fix"
+    "lint": "eslint \"src/**/*.ts\" --fix",
+    "test": "echo \"No tests configured\""
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
@@ -33,6 +34,8 @@
     "@nestjs/cli": "^10.0.0",
     "@types/node": "^20.0.0",
     "@types/passport-jwt": "^4.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.61.0",
+    "@typescript-eslint/parser": "^8.61.0",
     "eslint": "^8.0.0",
     "ts-node": "^10.0.0",
     "typescript": "^5.0.0"
