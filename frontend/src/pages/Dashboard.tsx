@@ -121,15 +121,15 @@ export default function Dashboard() {
         }
     };
 
+    const handleGenerateInsights = async () => {
+    if (!logs.length) return;
+
+    await fetchInsights(logs);
+};
+
     useEffect(() => {
     fetchCurrentWeather();
 }, [fetchCurrentWeather]);
-
-    useEffect(() => {
-        if (logs.length > 0) {
-            fetchInsights(logs);
-        }
-    }, [logs, fetchInsights]);
 
     return (
         <div className="flex min-h-screen bg-[#0d1117] text-white">
@@ -203,14 +203,25 @@ export default function Dashboard() {
                 {/* CONTENT */}
                 <div className="p-8">
                     {activePage === "overview" && (
-                        <Overview
-                            weatherData={weatherData}
-                            loadingWeather={loadingWeather}
-                            insight={insight}
-                            loadingInsight={loadingInsight}
-                            insightError={insightError}
-                        />
-                    )}
+    <>
+        <div className="flex gap-2 mb-4">
+            <Button
+                onClick={handleGenerateInsights}
+                disabled={loadingInsight || !logs.length}
+            >
+                {loadingInsight ? "Gerando insights..." : "Gerar insights com IA"}
+            </Button>
+        </div>
+
+        <Overview
+            weatherData={weatherData}
+            loadingWeather={loadingWeather}
+            insight={insight}
+            loadingInsight={loadingInsight}
+            insightError={insightError}
+        />
+    </>
+)}
 
                     {activePage === "charts" && <Charts logs={logs} />}
 
