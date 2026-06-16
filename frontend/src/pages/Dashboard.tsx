@@ -56,8 +56,13 @@ export default function Dashboard() {
     refetch: fetchLogs,
 } = useQuery({
     queryKey: ["weather-logs"],
-    queryFn: () => api.get<Log[]>("/api/weather/logs"),
+    queryFn: async () => {
+    return api.get<Log[]>("/api/weather/logs");
+},
     staleTime: 1000 * 60 * 5,
+
+    refetchInterval: 1000 * 60, // 👈 60 segundos
+    refetchIntervalInBackground: true,
 });
 
     const paginatedLogs = logs.slice(
