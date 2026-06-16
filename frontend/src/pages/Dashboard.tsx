@@ -9,6 +9,9 @@ import Charts from "../components/Charts";
 
 import { api } from "../api/api";
 
+import { useQuery } from "@tanstack/react-query";
+
+
 export interface Log {
     _id: string;
     source: string;
@@ -32,10 +35,9 @@ type WeatherCondition =
 type PageType = "overview" | "charts" | "logs" | "table";
 
 export default function Dashboard() {
-    const [logs, setLogs] = useState<Log[]>([]);
-    const [weatherData, setWeatherData] = useState<any>(null);
 
-    const [loading, setLoading] = useState(false);
+   const [weatherData, setWeatherData] = useState<unknown>(null);
+
     const [loadingWeather, setLoadingWeather] = useState(false);
 
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -48,28 +50,22 @@ export default function Dashboard() {
     const [loadingInsight, setLoadingInsight] = useState(false);
     const [insightError, setInsightError] = useState(false);
 
+    const {
+    data: logs = [],
+    isLoading: loading,
+    refetch: fetchLogs,
+} = useQuery({
+    queryKey: ["weather-logs"],
+    queryFn: () => api.get<Log[]>("/api/weather/logs"),
+    staleTime: 1000 * 60 * 5,
+});
+
     const paginatedLogs = logs.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+);
 
     const totalPages = Math.ceil(logs.length / itemsPerPage);
-
-    // =====================================
-    // ✅ BUSCAR LOGS
-    // =====================================
-    const fetchLogs = useCallback(async () => {
-        try {
-            setLoading(true);
-            const data = await api.get<Log[]>("/api/weather/logs");
-            setLogs(data);
-            setCurrentPage(1);
-        } catch (error) {
-            console.error("Erro ao buscar logs:", error);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
 
     // =====================================
     // ✅ BUSCAR CLIMA ATUAL
@@ -126,9 +122,8 @@ export default function Dashboard() {
     };
 
     useEffect(() => {
-        fetchLogs();
-        fetchCurrentWeather();
-    }, [fetchLogs, fetchCurrentWeather]);
+    fetchCurrentWeather();
+}, [fetchCurrentWeather]);
 
     useEffect(() => {
         if (logs.length > 0) {
@@ -189,7 +184,7 @@ export default function Dashboard() {
 
                     <div className="flex gap-2">
                         {(activePage === "logs" || activePage === "charts") && (
-                            <Button onClick={fetchLogs} disabled={loading}>
+                            <Button onClick={() => fetchLogs()} disabled={loading}>
                                 {loading ? "Loading..." : "Refresh"}
                             </Button>
                         )}
