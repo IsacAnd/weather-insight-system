@@ -52,16 +52,13 @@ export default function Dashboard() {
 
     const {
     data: logs = [],
-    isLoading: loading,
-    refetch: fetchLogs,
-} = useQuery({
+} = useQuery<Log[]>({
     queryKey: ["weather-logs"],
-    queryFn: async () => {
-    return api.get<Log[]>("/api/weather/logs");
-},
+    queryFn: () => api.get<Log[]>("/api/weather/logs"),
+
     staleTime: 1000 * 60 * 5,
 
-    refetchInterval: 1000 * 60, // 👈 60 segundos
+    refetchInterval: 1000 * 60,
     refetchIntervalInBackground: true,
 });
 
@@ -188,11 +185,6 @@ export default function Dashboard() {
                     </h2>
 
                     <div className="flex gap-2">
-                        {(activePage === "logs" || activePage === "charts") && (
-                            <Button onClick={() => fetchLogs()} disabled={loading}>
-                                {loading ? "Loading..." : "Refresh"}
-                            </Button>
-                        )}
 
                         <Button
                             onClick={() => {
