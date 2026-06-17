@@ -34,6 +34,20 @@ type WeatherCondition =
 
 type PageType = "overview" | "charts" | "logs" | "table";
 
+const pageTitles: Record<PageType, string> = {
+    overview: "Visão Geral",
+    charts: "Gráficos",
+    logs: "Histórico Climático",
+    table: "Dados Coletados",
+};
+
+const menuItems = [
+    { key: "overview", label: "📊 Visão Geral" },
+    { key: "charts", label: "📈 Gráficos" },
+    { key: "logs", label: "🕒 Histórico Climático" },
+    { key: "table", label: "🗄️ Dados Coletados" },
+];
+
 export default function Dashboard() {
 
    const [weatherData, setWeatherData] = useState<unknown>(null);
@@ -142,25 +156,27 @@ export default function Dashboard() {
             >
                 <div className="p-6 flex items-center justify-between">
                     <h1
-                        className={`text-xl font-bold transition-opacity duration-500 ${sidebarOpen ? "opacity-100" : "opacity-0"
-                            }`}
+                        className={`text-xl font-bold transition-opacity duration-500 ${
+                            sidebarOpen ? "opacity-100" : "opacity-0"
+                        }`}
                     >
-                        Weather Dashboard
+                        🌦️ Monitoramento Climático
                     </h1>
                 </div>
 
                 <nav className="p-4 space-y-2">
-                    {["overview", "charts", "logs", "table"].map((page) => (
+                    {menuItems.map((item) => (
                         <button
-                            key={page}
-                            onClick={() => setActivePage(page as PageType)}
-                            className={`w-full text-left px-4 py-2 rounded-xl transition-all font-medium
-                                ${activePage === page
-                                    ? "bg-blue-600 text-white"
-                                    : "hover:bg-[#21262d]"
+                            key={item.key}
+                            onClick={() => setActivePage(item.key as PageType)}
+                            className={`w-full text-left px-4 py-3 rounded-xl transition-all font-medium
+                                ${
+                                    activePage === item.key
+                                        ? "bg-blue-600 text-white"
+                                        : "hover:bg-[#21262d]"
                                 }`}
                         >
-                            {page.charAt(0).toUpperCase() + page.slice(1)}
+                                {item.label}
                         </button>
                     ))}
                 </nav>
@@ -180,8 +196,8 @@ export default function Dashboard() {
                         <Menu />
                     </Button>
 
-                    <h2 className="text-2xl font-semibold capitalize">
-                        {activePage}
+                    <h2 className="text-2xl font-semibold">
+                        {pageTitles[activePage]}
                     </h2>
 
                     <div className="flex gap-2">
@@ -192,7 +208,7 @@ export default function Dashboard() {
                                 window.location.href = "/";
                             }}
                         >
-                            Logout
+                            Sair
                         </Button>
                     </div>
                 </header>
@@ -206,8 +222,39 @@ export default function Dashboard() {
                 onClick={handleGenerateInsights}
                 disabled={loadingInsight || !logs.length}
             >
-                {loadingInsight ? "Gerando insights..." : "Gerar insights com IA"}
+                {loadingInsight
+                    ? "🤖 Gerando análise..."
+                    : "🤖 Gerar Análise Inteligente"}
             </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-[#161b22] rounded-xl p-4 border border-white/10">
+                <h3 className="text-sm text-gray-400">
+                    Última Atualização
+                </h3>
+                <p className="text-lg font-semibold">
+                    {new Date().toLocaleString("pt-BR")}
+                </p>
+            </div>
+
+            <div className="bg-[#161b22] rounded-xl p-4 border border-white/10">
+                <h3 className="text-sm text-gray-400">
+                    Registros Armazenados
+                </h3>
+                <p className="text-lg font-semibold">
+                    {logs.length}
+                </p>
+            </div>
+
+            <div className="bg-[#161b22] rounded-xl p-4 border border-white/10">
+                <h3 className="text-sm text-gray-400">
+                    Status do Sistema
+                </h3>
+                <p className="text-lg font-semibold text-green-400">
+                    🟢 Online
+                </p>
+            </div>
         </div>
 
         <Overview
