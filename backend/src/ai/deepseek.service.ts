@@ -113,7 +113,7 @@ export class DeepSeekService {
                 {
                     role: 'system',
                     content:
-                        'Analise a lista de 100 dados meteorológicos enviados e gere APENAS UM insight curto e direto (máximo 12 palavras). Não explique nada. Não use markdown. Apenas uma frase.',
+                        'Analise a lista de 100 dados meteorológicos enviados e gere APENAS UM insight curto e direto (máximo 12 palavras). Não explique nada. Não use markdown. Apenas uma frase em pt-br.',
                 },
                 {
                     role: 'user',
