@@ -9,6 +9,9 @@ import Charts from "../components/Charts";
 
 import { api } from "../api/api";
 
+import { useQuery } from "@tanstack/react-query";
+
+
 export interface Log {
     _id: string;
     source: string;
@@ -31,11 +34,24 @@ type WeatherCondition =
 
 type PageType = "overview" | "charts" | "logs" | "table";
 
-export default function Dashboard() {
-    const [logs, setLogs] = useState<Log[]>([]);
-    const [weatherData, setWeatherData] = useState<any>(null);
+const pageTitles: Record<PageType, string> = {
+    overview: "Visão Geral",
+    charts: "Gráficos",
+    logs: "Histórico Climático",
+    table: "Dados Coletados",
+};
 
-    const [loading, setLoading] = useState(false);
+const menuItems = [
+    { key: "overview", label: "📊 Visão Geral" },
+    { key: "charts", label: "📈 Gráficos" },
+    { key: "logs", label: "🕒 Histórico Climático" },
+    { key: "table", label: "🗄️ Dados Coletados" },
+];
+
+export default function Dashboard() {
+
+   const [weatherData, setWeatherData] = useState<unknown>(null);
+
     const [loadingWeather, setLoadingWeather] = useState(false);
 
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -48,28 +64,24 @@ export default function Dashboard() {
     const [loadingInsight, setLoadingInsight] = useState(false);
     const [insightError, setInsightError] = useState(false);
 
+    const {
+    data: logs = [],
+} = useQuery<Log[]>({
+    queryKey: ["weather-logs"],
+    queryFn: () => api.get<Log[]>("/api/weather/logs"),
+
+    staleTime: 1000 * 60 * 5,
+
+    refetchInterval: 1000 * 60,
+    refetchIntervalInBackground: true,
+});
+
     const paginatedLogs = logs.slice(
-        (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage
-    );
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+);
 
     const totalPages = Math.ceil(logs.length / itemsPerPage);
-
-    // =====================================
-    // ✅ BUSCAR LOGS
-    // =====================================
-    const fetchLogs = useCallback(async () => {
-        try {
-            setLoading(true);
-            const data = await api.get<Log[]>("/api/weather/logs");
-            setLogs(data);
-            setCurrentPage(1);
-        } catch (error) {
-            console.error("Erro ao buscar logs:", error);
-        } finally {
-            setLoading(false);
-        }
-    }, []);
 
     // =====================================
     // ✅ BUSCAR CLIMA ATUAL
@@ -125,16 +137,15 @@ export default function Dashboard() {
         }
     };
 
-    useEffect(() => {
-        fetchLogs();
-        fetchCurrentWeather();
-    }, [fetchLogs, fetchCurrentWeather]);
+    const handleGenerateInsights = async () => {
+    if (!logs.length) return;
+
+    await fetchInsights(logs);
+};
 
     useEffect(() => {
-        if (logs.length > 0) {
-            fetchInsights(logs);
-        }
-    }, [logs, fetchInsights]);
+    fetchCurrentWeather();
+}, [fetchCurrentWeather]);
 
     return (
         <div className="flex min-h-screen bg-[#0d1117] text-white">
@@ -145,25 +156,27 @@ export default function Dashboard() {
             >
                 <div className="p-6 flex items-center justify-between">
                     <h1
-                        className={`text-xl font-bold transition-opacity duration-500 ${sidebarOpen ? "opacity-100" : "opacity-0"
-                            }`}
+                        className={`text-xl font-bold transition-opacity duration-500 ${
+                            sidebarOpen ? "opacity-100" : "opacity-0"
+                        }`}
                     >
-                        Weather Dashboard
+                        🌦️ Monitoramento Climático
                     </h1>
                 </div>
 
                 <nav className="p-4 space-y-2">
-                    {["overview", "charts", "logs", "table"].map((page) => (
+                    {menuItems.map((item) => (
                         <button
-                            key={page}
-                            onClick={() => setActivePage(page as PageType)}
-                            className={`w-full text-left px-4 py-2 rounded-xl transition-all font-medium
-                                ${activePage === page
-                                    ? "bg-blue-600 text-white"
-                                    : "hover:bg-[#21262d]"
+                            key={item.key}
+                            onClick={() => setActivePage(item.key as PageType)}
+                            className={`w-full text-left px-4 py-3 rounded-xl transition-all font-medium
+                                ${
+                                    activePage === item.key
+                                        ? "bg-blue-600 text-white"
+                                        : "hover:bg-[#21262d]"
                                 }`}
                         >
-                            {page.charAt(0).toUpperCase() + page.slice(1)}
+                                {item.label}
                         </button>
                     ))}
                 </nav>
@@ -183,16 +196,11 @@ export default function Dashboard() {
                         <Menu />
                     </Button>
 
-                    <h2 className="text-2xl font-semibold capitalize">
-                        {activePage}
+                    <h2 className="text-2xl font-semibold">
+                        {pageTitles[activePage]}
                     </h2>
 
                     <div className="flex gap-2">
-                        {(activePage === "logs" || activePage === "charts") && (
-                            <Button onClick={fetchLogs} disabled={loading}>
-                                {loading ? "Loading..." : "Refresh"}
-                            </Button>
-                        )}
 
                         <Button
                             onClick={() => {
@@ -200,7 +208,7 @@ export default function Dashboard() {
                                 window.location.href = "/";
                             }}
                         >
-                            Logout
+                            Sair
                         </Button>
                     </div>
                 </header>
@@ -208,14 +216,56 @@ export default function Dashboard() {
                 {/* CONTENT */}
                 <div className="p-8">
                     {activePage === "overview" && (
-                        <Overview
-                            weatherData={weatherData}
-                            loadingWeather={loadingWeather}
-                            insight={insight}
-                            loadingInsight={loadingInsight}
-                            insightError={insightError}
-                        />
-                    )}
+    <>
+        <div className="flex gap-2 mb-4">
+            <Button
+                onClick={handleGenerateInsights}
+                disabled={loadingInsight || !logs.length}
+            >
+                {loadingInsight
+                    ? "🤖 Gerando análise..."
+                    : "🤖 Gerar Análise Inteligente"}
+            </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-[#161b22] rounded-xl p-4 border border-white/10">
+                <h3 className="text-sm text-gray-400">
+                    Última Atualização
+                </h3>
+                <p className="text-lg font-semibold">
+                    {new Date().toLocaleString("pt-BR")}
+                </p>
+            </div>
+
+            <div className="bg-[#161b22] rounded-xl p-4 border border-white/10">
+                <h3 className="text-sm text-gray-400">
+                    Registros Armazenados
+                </h3>
+                <p className="text-lg font-semibold">
+                    {logs.length}
+                </p>
+            </div>
+
+            <div className="bg-[#161b22] rounded-xl p-4 border border-white/10">
+                <h3 className="text-sm text-gray-400">
+                    Status do Sistema
+                </h3>
+                <p className="text-lg font-semibold text-green-400">
+                    🟢 Online
+                </p>
+            </div>
+        </div>
+
+        <Overview
+            weatherData={weatherData}
+            loadingWeather={loadingWeather}
+            insight={insight}
+            loadingInsight={loadingInsight}
+            insightError={insightError}
+        />
+    </>
+)}
 
                     {activePage === "charts" && <Charts logs={logs} />}
 
