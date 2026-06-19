@@ -8,6 +8,7 @@ import { ExportModule } from './export/export.module';
 import { UsersService } from './users/users.service';
 import { AuthModule } from './auth/auth.module';
 import { DeepSeekModule } from './ai/deepseek.module';
+import { LocationModule } from './location/location.module';
 
 @Module({
   imports: [
@@ -22,7 +23,6 @@ import { DeepSeekModule } from './ai/deepseek.module';
         const host = config.get('MONGO_HOST');
         const port = config.get('MONGO_PORT');
         const db = config.get('MONGO_DB');
-        console.log(user, pass)
 
         const authPart = user && pass ? `${user}:${pass}@` : '';
 
@@ -38,6 +38,7 @@ import { DeepSeekModule } from './ai/deepseek.module';
     ExportModule,
     AuthModule,
     DeepSeekModule,
+    LocationModule,
   ],
   controllers: [HealthController],
 })
