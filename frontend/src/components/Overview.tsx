@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Card } from "./ui/card";
 import {
     Sun,
@@ -6,6 +7,7 @@ import {
     CloudFog,
     CloudLightning,
     CloudSun,
+    MapPin,
 } from "lucide-react";
 import type { JSX } from "react/jsx-dev-runtime";
 
@@ -23,6 +25,20 @@ interface OverviewSectionProps {
     insight: string | null;
     loadingInsight: boolean;
     insightError: boolean;
+    coords: { latitude: number; longitude: number } | null;
+}
+
+// Fortaleza como fallback (mesmo padrão do backend)
+const DEFAULT_LAT = -3.7172;
+const DEFAULT_LON = -38.5433;
+
+function buildMapViewUrl(lat: number, lon: number): string {
+    return (
+        `https://maps.google.com/maps` +
+        `?q=${lat},${lon}` +
+        `&z=13` +
+        `&output=embed`
+    );
 }
 
 export default function OverviewSection({
@@ -31,28 +47,85 @@ export default function OverviewSection({
     insight,
     loadingInsight,
     insightError,
+    coords,
 }: OverviewSectionProps) {
+    const [locationName, setLocationName] = useState<string>("Carregando...");
+
+    const lat = coords?.latitude ?? DEFAULT_LAT;
+    const lon = coords?.longitude ?? DEFAULT_LON;
+
+    useEffect(() => {
+        const controller = new AbortController();
+
+        async function fetchLocationName() {
+            try {
+                const res = await fetch(
+                    `https://nominatim.openstreetmap.org/reverse` +
+                    `?lat=${lat}&lon=${lon}&format=json&accept-language=pt-BR`,
+                    {
+                        signal: controller.signal,
+                        headers: {
+                            "Accept-Language": "pt-BR",
+                        },
+                    }
+                );
+
+                if (!res.ok) throw new Error("Nominatim error");
+
+                const data = await res.json();
+
+                const addr = data.address ?? {};
+
+                const city =
+                    addr.city ||
+                    addr.town ||
+                    addr.village ||
+                    addr.hamlet ||
+                    addr.suburb ||
+                    addr.municipality ||
+                    addr.county ||
+                    addr.region;
+
+                const state = addr.state;
+
+                if (city && state) {
+                    setLocationName(`${city}, ${state}`);
+                } else if (city) {
+                    setLocationName(city);
+                } else if (data.display_name) {
+                    const parts = data.display_name.split(",").map((s: string) => s.trim());
+                    setLocationName(parts.slice(0, 2).join(", "));
+                } else {
+                    setLocationName("Local desconhecido");
+                }
+            } catch (err: any) {
+                if (err.name !== "AbortError") {
+                    setLocationName("Local desconhecido");
+                }
+            }
+        }
+
+        fetchLocationName();
+
+        return () => controller.abort();
+    }, [lat, lon]);
+
     const conditionIcons: Record<WeatherCondition, JSX.Element> = {
         Ensolarado: (
             <Sun className="w-20 h-20 text-yellow-400 drop-shadow-[0_0_15px_rgba(255,230,0,0.5)]" />
         ),
-
         "Parcialmente nublado": (
             <CloudSun className="w-20 h-20 text-yellow-300 drop-shadow-[0_0_15px_rgba(255,200,0,0.4)]" />
         ),
-
         Nublado: (
             <Cloud className="w-20 h-20 text-gray-300 drop-shadow-[0_0_12px_rgba(200,200,200,0.4)]" />
         ),
-
         Chuvoso: (
             <Droplet className="w-20 h-20 text-blue-400 drop-shadow-[0_0_15px_rgba(50,130,255,0.5)]" />
         ),
-
         Neblina: (
             <CloudFog className="w-20 h-20 text-gray-400 drop-shadow-[0_0_15px_rgba(180,180,180,0.5)]" />
         ),
-
         Tempestade: (
             <CloudLightning className="w-20 h-20 text-purple-500 drop-shadow-[0_0_18px_rgba(180,0,255,0.6)]" />
         ),
@@ -71,9 +144,16 @@ export default function OverviewSection({
             <Card className="lg:col-span-2 bg-[#161b22] text-white rounded-3xl p-8 shadow-xl border border-white/10">
                 <div className="flex justify-between items-start">
                     <div>
-                        <span className="text-purple-400 px-3 py-1 rounded-full bg-purple-400/10 text-sm">
-                            Ceará, Brasil
+                        {/* Nome do local via reverse geocoding */}
+                        <span className="flex items-center gap-1 text-purple-400 px-3 py-1 rounded-full bg-purple-400/10 text-sm w-fit">
+                            <MapPin className="w-3 h-3" />
+                            {locationName}
                         </span>
+
+                        {/* Coordenadas exatas */}
+                        <p className="text-xs text-gray-500 mt-1 ml-1">
+                            {lat.toFixed(5)}, {lon.toFixed(5)}
+                        </p>
 
                         <h2 className="text-5xl font-bold mt-6">
                             {weatherData.temperature}°C
@@ -98,11 +178,7 @@ export default function OverviewSection({
                     </div>
 
                     <div className="drop-shadow-xl">
-                        {
-                            conditionIcons[
-                            weatherData.condition as WeatherCondition
-                            ]
-                        }
+                        {conditionIcons[weatherData.condition as WeatherCondition]}
                     </div>
                 </div>
 
@@ -131,13 +207,15 @@ export default function OverviewSection({
 
                 <div className="mt-10 w-full">
                     <iframe
+                        key={`${lat}-${lon}`}
                         width="100%"
                         height="350"
                         className="rounded-3xl border border-white/10 shadow-lg"
                         loading="lazy"
                         allowFullScreen
                         referrerPolicy="no-referrer-when-downgrade"
-                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d15926.801842055118!2d-38.5433501!3d-3.7327141!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x7c7491cf8b4bb7f%3A0x75b4d8ebaffe01dd!2sFortaleza%2C%20CE!5e0!3m2!1spt-BR!2sbr!4v1733252170000!5m2!1spt-BR!2sbr"
+                        src={buildMapViewUrl(lat, lon)}
+                        title={`Mapa de ${locationName}`}
                     />
                 </div>
             </Card>
@@ -146,7 +224,7 @@ export default function OverviewSection({
                 {[
                     ["Chance de Chuva", `${weatherData.precipitationChance}%`],
                     ["Índice UV", weatherData.uvIndex],
-                    ["Vento", `${weatherData.windSpeed} km/h`],
+                    ["Vento", `${weatherData.windSpeed ?? weatherData.windspeed} km/h`],
                     ["Umidade", `${weatherData.humidity}%`],
                 ].map(([label, value]) => (
                     <Card

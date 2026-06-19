@@ -14,4 +14,4 @@ import { ConfigModule } from '@nestjs/config';
   providers: [WeatherService],
   exports: [WeatherService],
 })
-export class WeatherModule {}
+export class WeatherModule { }

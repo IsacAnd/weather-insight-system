@@ -17,14 +17,53 @@ def get_env(key: str) -> str:
     return value
 
 
+# Fortaleza como fallback caso o backend não responda
+DEFAULT_LAT = -3.7172
+DEFAULT_LON = -38.5433
+
+
 class WeatherService:
     def __init__(self):
-        base_url = get_env("OPEN_METEO_URL")
-        lat = get_env("LAT")
-        lon = get_env("LON")
+        self.base_url = get_env("OPEN_METEO_URL")
+        self.backend_url = get_env("BACKEND_INTERNAL_URL")
+        self.session = requests.Session()
 
-        self.api_url = (
-            f"{base_url}?latitude={lat}&longitude={lon}"
+        print("WeatherService configurado com sucesso")
+
+    def fetch_coords(self) -> tuple[float, float]:
+        """
+        Busca as coordenadas salvas no backend.
+        Retorna Fortaleza como fallback se o backend não responder
+        ou ainda não tiver coords salvas.
+        """
+        try:
+            response = self.session.get(
+                f"{self.backend_url}/api/location",
+                timeout=5,
+            )
+
+            response.raise_for_status()
+
+            data = response.json()
+
+            lat = data["latitude"]
+            lon = data["longitude"]
+
+            print(f"Coordenadas obtidas do backend: lat={lat}, lon={lon}")
+
+            return lat, lon
+
+        except Exception as e:
+            print(
+                f"Erro ao buscar coordenadas do backend ({e}). "
+                f"Usando fallback: lat={DEFAULT_LAT}, lon={DEFAULT_LON}"
+            )
+
+            return DEFAULT_LAT, DEFAULT_LON
+
+    def build_api_url(self, lat: float, lon: float) -> str:
+        return (
+            f"{self.base_url}?latitude={lat}&longitude={lon}"
             "&current_weather=true"
             "&hourly=relativehumidity_2m,"
             "uv_index,"
@@ -33,15 +72,14 @@ class WeatherService:
             "cloudcover"
         )
 
-        self.session = requests.Session()
-
-        print("WeatherService configurado com sucesso")
-        print(f"URL: {self.api_url}")
-
     def fetch_weather(self):
+        lat, lon = self.fetch_coords()
+
+        api_url = self.build_api_url(lat, lon)
+
         try:
             response = self.session.get(
-                self.api_url,
+                api_url,
                 timeout=10,
             )
 
@@ -81,9 +119,7 @@ class WeatherService:
                 "humidity": hourly["relativehumidity_2m"][idx],
                 "uvIndex": uv,
                 "precipitationChance": rain,
-                "heatIndex": hourly[
-                    "apparent_temperature"
-                ][idx],
+                "heatIndex": hourly["apparent_temperature"][idx],
                 "condition": condition,
                 "timestamp": cw["time"],
             }
@@ -121,5 +157,8 @@ class WeatherService:
 
         if cloudcover >= 40:
             return "Parcialmente nublado"
+        
+        if cloudcover < 40:
+            return "Céu limpo"
 
         return "Indefinido"
