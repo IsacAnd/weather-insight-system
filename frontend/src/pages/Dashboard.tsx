@@ -50,9 +50,16 @@ const menuItems = [
 
 export default function Dashboard() {
 
-   const [weatherData, setWeatherData] = useState<unknown>(null);
+    const [weatherData, setWeatherData] = useState<unknown>(null);
 
     const [loadingWeather, setLoadingWeather] = useState(false);
+
+    const [coords, setCoords] = useState<{
+        latitude: number;
+        longitude: number;
+    } | null>(null);
+
+    const [locationError, setLocationError] = useState<string | null>(null);
 
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [activePage, setActivePage] = useState<PageType>("overview");
@@ -65,38 +72,91 @@ export default function Dashboard() {
     const [insightError, setInsightError] = useState(false);
 
     const {
-    data: logs = [],
-} = useQuery<Log[]>({
-    queryKey: ["weather-logs"],
-    queryFn: () => api.get<Log[]>("/api/weather/logs"),
+        data: logs = [],
+    } = useQuery<Log[]>({
+        queryKey: ["weather-logs"],
+        queryFn: () => api.get<Log[]>("/api/weather/logs"),
 
-    staleTime: 1000 * 60 * 5,
+        staleTime: 1000 * 60 * 5,
 
-    refetchInterval: 1000 * 60,
-    refetchIntervalInBackground: true,
-});
+        refetchInterval: 1000 * 60,
+        refetchIntervalInBackground: true,
+    });
 
     const paginatedLogs = logs.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-);
+        (currentPage - 1) * itemsPerPage,
+        currentPage * itemsPerPage
+    );
 
     const totalPages = Math.ceil(logs.length / itemsPerPage);
 
     // =====================================
     // ✅ BUSCAR CLIMA ATUAL
     // =====================================
-    const fetchCurrentWeather = useCallback(async () => {
-        try {
-            setLoadingWeather(true);
-            const data = await api.get("/api/weather/current");
-            setWeatherData(data);
-        } catch (error) {
-            console.error("Erro ao buscar clima atual:", error);
-        } finally {
-            setLoadingWeather(false);
+    const fetchCurrentWeather = useCallback(
+        async (latitude?: number, longitude?: number) => {
+            try {
+                setLoadingWeather(true);
+
+                let endpoint = "/api/weather/current";
+
+                if (latitude !== undefined && longitude !== undefined) {
+                    endpoint += `?lat=${latitude}&lon=${longitude}`;
+                }
+
+                const data = await api.get(endpoint);
+
+                setWeatherData(data);
+            } catch (error) {
+                console.error("Erro ao buscar clima atual:", error);
+            } finally {
+                setLoadingWeather(false);
+            }
+        },
+        []
+    );
+
+    // =====================================
+    // ✅ GEOLOCALIZAÇÃO
+    // =====================================
+    const getUserLocation = useCallback(() => {
+        if (!navigator.geolocation) {
+            setLocationError("Seu navegador não suporta geolocalização.");
+            // Sem suporte a geolocalização, busca com localização padrão
+            fetchCurrentWeather();
+            return;
         }
-    }, []);
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const userCoords = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                };
+
+                setCoords(userCoords);
+
+                localStorage.setItem(
+                    "weather-coords",
+                    JSON.stringify(userCoords)
+                );
+            },
+            (error) => {
+                console.error(error);
+
+                setLocationError(
+                    "Não foi possível obter sua localização."
+                );
+
+                // Fallback: busca com localização padrão do backend
+                fetchCurrentWeather();
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 10000,
+            }
+        );
+    }, [fetchCurrentWeather]);
 
     const fetchInsights = useCallback(async (data: Log[]) => {
         try {
@@ -138,14 +198,36 @@ export default function Dashboard() {
     };
 
     const handleGenerateInsights = async () => {
-    if (!logs.length) return;
+        if (!logs.length) return;
 
-    await fetchInsights(logs);
-};
+        await fetchInsights(logs);
+    };
 
+    // =====================================
+    // ✅ EFEITO: busca clima apenas quando coords estiverem disponíveis
+    // =====================================
     useEffect(() => {
-    fetchCurrentWeather();
-}, [fetchCurrentWeather]);
+        if (!coords) return; // aguarda coords, não dispara sem elas
+
+        fetchCurrentWeather(coords.latitude, coords.longitude);
+    }, [coords, fetchCurrentWeather]);
+
+    // =====================================
+    // ✅ EFEITO: inicializa localização (roda uma vez)
+    // =====================================
+    useEffect(() => {
+        const savedCoords = localStorage.getItem("weather-coords");
+
+        if (savedCoords) {
+            // Usa cache instantaneamente para não travar o carregamento
+            setCoords(JSON.parse(savedCoords));
+            // Atualiza posição em background para a próxima visita
+            getUserLocation();
+            return;
+        }
+
+        getUserLocation();
+    }, [getUserLocation]);
 
     return (
         <div className="flex min-h-screen bg-[#0d1117] text-white">
@@ -156,9 +238,8 @@ export default function Dashboard() {
             >
                 <div className="p-6 flex items-center justify-between">
                     <h1
-                        className={`text-xl font-bold transition-opacity duration-500 ${
-                            sidebarOpen ? "opacity-100" : "opacity-0"
-                        }`}
+                        className={`text-xl font-bold transition-opacity duration-500 ${sidebarOpen ? "opacity-100" : "opacity-0"
+                            }`}
                     >
                         🌦️ Monitoramento Climático
                     </h1>
@@ -170,13 +251,12 @@ export default function Dashboard() {
                             key={item.key}
                             onClick={() => setActivePage(item.key as PageType)}
                             className={`w-full text-left px-4 py-3 rounded-xl transition-all font-medium
-                                ${
-                                    activePage === item.key
-                                        ? "bg-blue-600 text-white"
-                                        : "hover:bg-[#21262d]"
+                                ${activePage === item.key
+                                    ? "bg-blue-600 text-white"
+                                    : "hover:bg-[#21262d]"
                                 }`}
                         >
-                                {item.label}
+                            {item.label}
                         </button>
                     ))}
                 </nav>
@@ -201,6 +281,11 @@ export default function Dashboard() {
                     </h2>
 
                     <div className="flex gap-2">
+                        {locationError && (
+                            <span className="text-xs text-yellow-400 self-center">
+                                ⚠️ {locationError}
+                            </span>
+                        )}
 
                         <Button
                             onClick={() => {
@@ -216,56 +301,57 @@ export default function Dashboard() {
                 {/* CONTENT */}
                 <div className="p-8">
                     {activePage === "overview" && (
-    <>
-        <div className="flex gap-2 mb-4">
-            <Button
-                onClick={handleGenerateInsights}
-                disabled={loadingInsight || !logs.length}
-            >
-                {loadingInsight
-                    ? "🤖 Gerando análise..."
-                    : "🤖 Gerar Análise Inteligente"}
-            </Button>
-        </div>
+                        <>
+                            <div className="flex gap-2 mb-4">
+                                <Button
+                                    onClick={handleGenerateInsights}
+                                    disabled={loadingInsight || !logs.length}
+                                >
+                                    {loadingInsight
+                                        ? "🤖 Gerando análise..."
+                                        : "🤖 Gerar Análise Inteligente"}
+                                </Button>
+                            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-[#161b22] rounded-xl p-4 border border-white/10">
-                <h3 className="text-sm text-gray-400">
-                    Última Atualização
-                </h3>
-                <p className="text-lg font-semibold">
-                    {new Date().toLocaleString("pt-BR")}
-                </p>
-            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                <div className="bg-[#161b22] rounded-xl p-4 border border-white/10">
+                                    <h3 className="text-sm text-gray-400">
+                                        Última Atualização
+                                    </h3>
+                                    <p className="text-lg font-semibold">
+                                        {new Date().toLocaleString("pt-BR")}
+                                    </p>
+                                </div>
 
-            <div className="bg-[#161b22] rounded-xl p-4 border border-white/10">
-                <h3 className="text-sm text-gray-400">
-                    Registros Armazenados
-                </h3>
-                <p className="text-lg font-semibold">
-                    {logs.length}
-                </p>
-            </div>
+                                <div className="bg-[#161b22] rounded-xl p-4 border border-white/10">
+                                    <h3 className="text-sm text-gray-400">
+                                        Registros Armazenados
+                                    </h3>
+                                    <p className="text-lg font-semibold">
+                                        {logs.length}
+                                    </p>
+                                </div>
 
-            <div className="bg-[#161b22] rounded-xl p-4 border border-white/10">
-                <h3 className="text-sm text-gray-400">
-                    Status do Sistema
-                </h3>
-                <p className="text-lg font-semibold text-green-400">
-                    🟢 Online
-                </p>
-            </div>
-        </div>
+                                <div className="bg-[#161b22] rounded-xl p-4 border border-white/10">
+                                    <h3 className="text-sm text-gray-400">
+                                        Status do Sistema
+                                    </h3>
+                                    <p className="text-lg font-semibold text-green-400">
+                                        🟢 Online
+                                    </p>
+                                </div>
+                            </div>
 
-        <Overview
-            weatherData={weatherData}
-            loadingWeather={loadingWeather}
-            insight={insight}
-            loadingInsight={loadingInsight}
-            insightError={insightError}
-        />
-    </>
-)}
+                            <Overview
+                                weatherData={weatherData}
+                                loadingWeather={loadingWeather}
+                                insight={insight}
+                                loadingInsight={loadingInsight}
+                                insightError={insightError}
+                                coords={coords}
+                            />
+                        </>
+                    )}
 
                     {activePage === "charts" && <Charts logs={logs} />}
 

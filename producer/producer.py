@@ -26,8 +26,6 @@ INTERVAL_SECONDS = int(get_env("INTERVAL_SECONDS"))
 print(f"Intervalo de coleta: {INTERVAL_SECONDS} segundos")
 
 parameters = pika.URLParameters(RABBITMQ_URL)
-
-# Detecta conexões mortas mais rapidamente
 parameters.heartbeat = 30
 parameters.blocked_connection_timeout = 60
 
@@ -65,10 +63,8 @@ connection, channel = connect_rabbitmq()
 
 print("Producer iniciado e publicando dados...")
 
-
 while True:
     try:
-        # Reconecta caso a conexão tenha sido encerrada
         if connection.is_closed:
             print("Conexão RabbitMQ fechada. Reconectando...")
             connection, channel = connect_rabbitmq()
@@ -83,9 +79,7 @@ while True:
                 "uvIndex": data["uvIndex"],
                 "precipitationChance": data["precipitationChance"],
                 "heatIndex": data["heatIndex"],
-                "timestamp": datetime.now(
-                    timezone.utc
-                ).isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "obs_timestamp": data.get("timestamp"),
                 "source": "weather-api",
                 "condition": data["condition"],
@@ -110,13 +104,8 @@ while True:
         pika.exceptions.ChannelWrongStateError,
         pika.exceptions.ConnectionClosed,
     ) as e:
-
-        print(
-            f"Conexão com RabbitMQ perdida: {e}"
-        )
-
+        print(f"Conexão com RabbitMQ perdida: {e}")
         print("Tentando reconectar...")
-
         connection, channel = connect_rabbitmq()
 
     except Exception as e:
