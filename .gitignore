@@ -70,3 +70,4 @@ desktop.ini
 # =========================
 coverage/
 *.tgz
+./deplot.md
