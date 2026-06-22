@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -43,7 +44,46 @@ func getEnv(key string) string {
 	return val
 }
 
+// Servidor HTTP mínimo — necessário apenas para que o Render
+// reconheça este processo como "Web Service" (free tier não
+// suporta o tipo "Background Worker"). Não é usado pela lógica
+// de negócio; serve só de health check.
+func startHealthServer(ready chan<- struct{}) {
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("worker ok"))
+	})
+
+	ln, err := net.Listen("tcp", ":"+port)
+	if err != nil {
+		log.Fatalf("Erro ao abrir porta %s: %v", port, err)
+	}
+
+	log.Printf("Health server ouvindo na porta %s\n", port)
+
+	// Sinaliza que a porta está aberta ANTES de começar a aceitar
+	// conexões — o Render detecta a porta e considera o serviço ativo
+	close(ready)
+
+	if err := http.Serve(ln, mux); err != nil {
+		log.Fatalf("Erro no health server: %v", err)
+	}
+}
+
 func main() {
+	// Aguarda o health server abrir a porta antes de iniciar o worker.
+	// O Render escaneia a porta logo após o processo iniciar — se não
+	// encontrá-la aberta, considera o deploy com falha.
+	ready := make(chan struct{})
+	go startHealthServer(ready)
+	<-ready
+
 	for {
 		err := runWorker()
 
