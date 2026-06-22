@@ -70,4 +70,4 @@ desktop.ini
 # =========================
 coverage/
 *.tgz
-deploy.md
+./deploy.md
