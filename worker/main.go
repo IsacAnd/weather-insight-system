@@ -366,28 +366,6 @@ func runWorker() error {
 
 		resp.Body.Close()
 
-			if p.RetryCount >= MaxRetries {
-
-				publishToDLQ(
-					ch,
-					dlqName,
-					p,
-				)
-
-			} else {
-
-				republishMessage(
-					ch,
-					queueName,
-					p,
-				)
-			}
-
-			d.Ack(false)
-
-			continue
-		}
-
 		d.Ack(false)
 
 		log.Printf(
