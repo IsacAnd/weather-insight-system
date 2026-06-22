@@ -29,6 +29,10 @@ type Payload struct {
 	ObsTimestamp        string  `json:"obs_timestamp"`
 	Source              string  `json:"source"`
 	Condition           string  `json:"condition"`
+
+	// ✅ Localização de origem do registro
+	Latitude  float64 `json:"latitude"`
+	Longitude float64 `json:"longitude"`
 }
 
 func getEnv(key string) string {
@@ -44,7 +48,7 @@ func getEnv(key string) string {
 	return val
 }
 
-// Servidor HTTP mínimo — necessário apenas para que o Render
+// ✅ Servidor HTTP mínimo — necessário apenas para que o Render
 // reconheça este processo como "Web Service" (free tier não
 // suporta o tipo "Background Worker"). Não é usado pela lógica
 // de negócio; serve só de health check.
@@ -296,9 +300,46 @@ func runWorker() error {
 		if err != nil {
 
 			log.Printf(
-				"Falha msg=%s retry=%d\n",
+				"Falha msg=%s retry=%d err=%v\n",
 				p.MessageID,
 				p.RetryCount,
+				err,
+			)
+
+			if p.RetryCount >= MaxRetries {
+
+				publishToDLQ(
+					ch,
+					dlqName,
+					p,
+				)
+
+			} else {
+
+				republishMessage(
+					ch,
+					queueName,
+					p,
+				)
+			}
+
+			d.Ack(false)
+
+			continue
+		}
+
+		if resp.StatusCode >= 400 {
+
+			bodyBytes := make([]byte, 512)
+			n, _ := resp.Body.Read(bodyBytes)
+			resp.Body.Close()
+
+			log.Printf(
+				"Backend erro msg=%s retry=%d status=%d body=%s\n",
+				p.MessageID,
+				p.RetryCount,
+				resp.StatusCode,
+				string(bodyBytes[:n]),
 			)
 
 			if p.RetryCount >= MaxRetries {
@@ -324,37 +365,6 @@ func runWorker() error {
 		}
 
 		resp.Body.Close()
-
-		if resp.StatusCode >= 400 {
-
-			log.Printf(
-				"Backend erro msg=%s retry=%d status=%d\n",
-				p.MessageID,
-				p.RetryCount,
-				resp.StatusCode,
-			)
-
-			if p.RetryCount >= MaxRetries {
-
-				publishToDLQ(
-					ch,
-					dlqName,
-					p,
-				)
-
-			} else {
-
-				republishMessage(
-					ch,
-					queueName,
-					p,
-				)
-			}
-
-			d.Ack(false)
-
-			continue
-		}
 
 		d.Ack(false)
 
