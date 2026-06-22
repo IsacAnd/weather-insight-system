@@ -22,7 +22,7 @@ def get_env(key: str) -> str:
 
 
 # =====================================
-# ✅ SERVIDOR HTTP MÍNIMO
+# SERVIDOR HTTP MÍNIMO
 # =====================================
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -61,7 +61,7 @@ def connect_rabbitmq(parameters, queue_name: str):
 
 
 # =====================================
-# ✅ LOOP PRINCIPAL DO PRODUCER
+# LOOP PRINCIPAL DO PRODUCER
 # =====================================
 # Toda inicialização acontece DENTRO desta função,
 # que roda em thread separada — garante que o health
@@ -103,8 +103,7 @@ def run_producer_loop():
                     "obs_timestamp": data.get("timestamp"),
                     "source": "weather-api",
                     "condition": data["condition"],
-                    "latitude": data["latitude"],
-                    "longitude": data["longitude"],
+
                 }
 
                 json_msg = json.dumps(message)
