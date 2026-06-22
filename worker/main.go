@@ -164,8 +164,10 @@ func runWorker() error {
 
 	rabbitURL := getEnv("RABBITMQ_URL")
 	queueName := getEnv("RABBITMQ_QUEUE")
-	backendURL := getEnv("BACKEND_INTERNAL_URL")
+	backendBaseURL := getEnv("BACKEND_INTERNAL_URL")
 	workerSecret := getEnv("WORKER_SECRET")
+
+	backendURL := backendBaseURL + "/api/weather/logs"
 
 	dlqName := queueName + ".dlq"
 
