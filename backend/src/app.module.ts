@@ -18,6 +18,11 @@ import { LocationModule } from './location/location.module';
 
     MongooseModule.forRootAsync({
       useFactory: (config: ConfigService) => {
+        // Produção (Atlas): usa a connection string completa via MONGO_URI
+        const uri = config.get<string>('MONGO_URI');
+        if (uri) return { uri };
+
+        // Local (Docker Compose): monta a URI a partir das variáveis individuais
         const user = config.get('MONGO_INITDB_ROOT_USERNAME');
         const pass = config.get('MONGO_INITDB_ROOT_PASSWORD');
         const host = config.get('MONGO_HOST');

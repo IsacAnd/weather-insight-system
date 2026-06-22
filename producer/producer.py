@@ -1,8 +1,10 @@
 import json
 import os
 import sys
+import threading
 import time
 from datetime import datetime, timezone
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pika
 
@@ -19,35 +21,35 @@ def get_env(key: str) -> str:
     return value
 
 
-RABBITMQ_URL = get_env("RABBITMQ_URL")
-RABBITMQ_QUEUE = get_env("RABBITMQ_QUEUE")
-INTERVAL_SECONDS = int(get_env("INTERVAL_SECONDS"))
+# =====================================
+# ✅ SERVIDOR HTTP MÍNIMO
+# =====================================
+class HealthHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain")
+        self.end_headers()
+        self.wfile.write(b"producer ok")
 
-print(f"Intervalo de coleta: {INTERVAL_SECONDS} segundos")
-
-parameters = pika.URLParameters(RABBITMQ_URL)
-parameters.heartbeat = 30
-parameters.blocked_connection_timeout = 60
-
-weather = WeatherService()
+    def log_message(self, format, *args):
+        pass
 
 
-def connect_rabbitmq():
+def start_health_server():
+    port = int(os.getenv("PORT", "8080"))
+    server = HTTPServer(("0.0.0.0", port), HealthHandler)
+    print(f"Health server ouvindo na porta {port}")
+    server.serve_forever()
+
+
+def connect_rabbitmq(parameters, queue_name: str):
     while True:
         try:
             print("Conectando ao RabbitMQ...")
-
             connection = pika.BlockingConnection(parameters)
-
             channel = connection.channel()
-
-            channel.queue_declare(
-                queue=RABBITMQ_QUEUE,
-                durable=True,
-            )
-
+            channel.queue_declare(queue=queue_name, durable=True)
             print("Conectado ao RabbitMQ!")
-
             return connection, channel
 
         except pika.exceptions.AMQPConnectionError as e:
@@ -55,60 +57,89 @@ def connect_rabbitmq():
                 f"RabbitMQ indisponível ({e}). "
                 "Nova tentativa em 5 segundos..."
             )
-
             time.sleep(5)
 
 
-connection, channel = connect_rabbitmq()
+# =====================================
+# ✅ LOOP PRINCIPAL DO PRODUCER
+# =====================================
+# Toda inicialização acontece DENTRO desta função,
+# que roda em thread separada — garante que o health
+# server HTTP sobe primeiro e o Render detecta a porta.
+def run_producer_loop():
+    rabbitmq_url = get_env("RABBITMQ_URL")
+    queue_name = get_env("RABBITMQ_QUEUE")
+    interval = int(get_env("INTERVAL_SECONDS"))
 
-print("Producer iniciado e publicando dados...")
+    parameters = pika.URLParameters(rabbitmq_url)
+    parameters.heartbeat = 30
+    parameters.blocked_connection_timeout = 60
 
-while True:
-    try:
-        if connection.is_closed:
-            print("Conexão RabbitMQ fechada. Reconectando...")
-            connection, channel = connect_rabbitmq()
+    weather = WeatherService()
 
-        data = weather.fetch_weather()
+    print(f"Intervalo de coleta: {interval} segundos")
 
-        if data:
-            message = {
-                "temperature": data["temperature"],
-                "windspeed": data["windspeed"],
-                "humidity": data["humidity"],
-                "uvIndex": data["uvIndex"],
-                "precipitationChance": data["precipitationChance"],
-                "heatIndex": data["heatIndex"],
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-                "obs_timestamp": data.get("timestamp"),
-                "source": "weather-api",
-                "condition": data["condition"],
-            }
+    connection, channel = connect_rabbitmq(parameters, queue_name)
 
-            json_msg = json.dumps(message)
+    print("Producer iniciado e publicando dados...")
 
-            channel.basic_publish(
-                exchange="",
-                routing_key=RABBITMQ_QUEUE,
-                body=json_msg,
-                properties=pika.BasicProperties(
-                    delivery_mode=2,
-                ),
-            )
+    while True:
+        try:
+            if connection.is_closed:
+                print("Conexão RabbitMQ fechada. Reconectando...")
+                connection, channel = connect_rabbitmq(parameters, queue_name)
 
-            print(f"Published: {json_msg}")
+            data = weather.fetch_weather()
 
-    except (
-        pika.exceptions.AMQPConnectionError,
-        pika.exceptions.StreamLostError,
-        pika.exceptions.ChannelWrongStateError,
-        pika.exceptions.ConnectionClosed,
-    ) as e:
-        print(f"Conexão com RabbitMQ perdida: {e}")
-        print("Tentando reconectar...")
-        connection, channel = connect_rabbitmq()
+            if data:
+                message = {
+                    "temperature": data["temperature"],
+                    "windspeed": data["windspeed"],
+                    "humidity": data["humidity"],
+                    "uvIndex": data["uvIndex"],
+                    "precipitationChance": data["precipitationChance"],
+                    "heatIndex": data["heatIndex"],
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "obs_timestamp": data.get("timestamp"),
+                    "source": "weather-api",
+                    "condition": data["condition"],
+                    "latitude": data["latitude"],
+                    "longitude": data["longitude"],
+                }
 
-    except Exception as e:
-        print(f"Erro ao publicar mensagem: {e}")
+                json_msg = json.dumps(message)
 
-    time.sleep(INTERVAL_SECONDS)
+                channel.basic_publish(
+                    exchange="",
+                    routing_key=queue_name,
+                    body=json_msg,
+                    properties=pika.BasicProperties(delivery_mode=2),
+                )
+
+                print(f"Published: {json_msg}")
+
+        except (
+            pika.exceptions.AMQPConnectionError,
+            pika.exceptions.StreamLostError,
+            pika.exceptions.ChannelWrongStateError,
+            pika.exceptions.ConnectionClosed,
+        ) as e:
+            print(f"Conexão com RabbitMQ perdida: {e}")
+            print("Tentando reconectar...")
+            connection, channel = connect_rabbitmq(parameters, queue_name)
+
+        except Exception as e:
+            print(f"Erro ao publicar mensagem: {e}")
+
+        time.sleep(interval)
+
+
+if __name__ == "__main__":
+    # Loop de coleta roda em thread daemon separada.
+    # A thread principal serve o health check HTTP —
+    # o Render detecta a porta e considera o serviço ativo.
+    producer_thread = threading.Thread(target=run_producer_loop, daemon=True)
+    producer_thread.start()
+
+    # Bloqueia na thread principal servindo o health check
+    start_health_server()
