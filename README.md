@@ -24,15 +24,15 @@ O sistema integra mensageria, banco de dados NoSQL, inteligência artificial e v
 
 ### Dashboard Principal
 
-> Em breve 
+<img width="1856" height="860" alt="image" src="https://github.com/user-attachments/assets/7642547d-5182-4fdb-8e3c-c93539ebe959" />
 
 ### Gráficos Climáticos
 
-> Em breve
+<img width="1180" height="755" alt="image" src="https://github.com/user-attachments/assets/76d7703e-65ac-4dfa-b108-196cd1238956" />
 
 ### Insights Gerados por IA
 
-> Em breve
+<img width="706" height="366" alt="image" src="https://github.com/user-attachments/assets/46329556-3a5e-4670-9c16-68eddbe74910" />
 
 ---
 
@@ -210,12 +210,12 @@ Todos os serviços devem estar em execução.
 
 ## 🌐 Serviços Disponíveis
 
-| Serviço     | URL                       |
-| ----------- | ------------------------- |
-| Frontend    | http://localhost:8080     |
-| Backend API | http://localhost:3000     |
-| RabbitMQ    | http://localhost:15672    |
-| MongoDB     | mongodb://localhost:27017 |
+| Serviço     | URL                                                                  |
+| ----------- | -------------------------------------------------------------------- |
+| Frontend    | [wis-frontend](https://weather-insight-system.vercel.app/dashboard)  |
+| Backend API | [wis-backend](https://weather-insight-system.onrender.com)           |
+| Worker      | [wis-worker](https://go-worker-zwek.onrender.com)                    | 
+| Producer    | [wis-producer](https://go-worker-zwek.onrender.com)                  |
 
 ---
 
