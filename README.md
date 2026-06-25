@@ -64,7 +64,7 @@ https://docs.google.com/document/d/1OzQcOrtPNNc1TJJ3_gxTbEBWRFsNNbMDpYmBoky2Z5o/
          │
     ┌────┴────┐
     ▼         ▼
-MongoDB   DeepSeek IA
+MongoDB   ChatGPT
     │
     ▼
 Frontend React
