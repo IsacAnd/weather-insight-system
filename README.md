@@ -36,6 +36,15 @@ O sistema integra mensageria, banco de dados NoSQL, inteligência artificial e v
 
 ---
 
+## 📖 Documentação
+
+A documentação completa do projeto está disponível no link abaixo:
+
+📄 **Documentação Oficial:**
+https://docs.google.com/document/d/1OzQcOrtPNNc1TJJ3_gxTbEBWRFsNNbMDpYmBoky2Z5o/edit?usp=drivesdk
+
+---
+
 ## 🧠 Visão Geral da Arquitetura
 
 ```text
